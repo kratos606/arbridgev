@@ -6,7 +6,8 @@ const fs = require('fs');
 const https = require('https'); // HTTPS module for secure server
 const http = require('http');
 const bodyParser = require('body-parser');
-const { NodeIO, Bounds } = require('@gltf-transform/core'); // Import Bounds from @gltf-transform/core
+const { NodeIO } = require('@gltf-transform/core'); // Import Bounds from @gltf-transform/core
+const { getBounds } = require('@gltf-transform/functions');
 const crypto = require('crypto');
 
 // Load SSL certificates
@@ -59,94 +60,87 @@ app.post('/upload', (req, res) => {
 });
 
 app.post('/resize', async (req, res) => {
-  try {
-    const { modelName, scale } = req.body; // Expecting modelName and scale in the request body
+    try {
+        const { modelName, desiredSize } = req.body;
 
-    if (!modelName || !scale) {
-      return res.status(400).json({ error: 'modelName and scale are required in the request body.' });
+        if (!modelName || !desiredSize) {
+            return res.status(400).json({ error: 'modelName and desiredSize are required in the request body.' });
+        }
+
+        if (modelName.includes('/') || modelName.includes('\\') || modelName.includes('..')) {
+            return res.status(400).json({ error: 'Invalid modelName specified.' });
+        }
+
+        if (typeof desiredSize !== 'object' || desiredSize === null ||
+            typeof desiredSize.width !== 'number' ||
+            typeof desiredSize.height !== 'number' ||
+            typeof desiredSize.depth !== 'number') {
+            return res.status(400).json({ error: 'Desired size must be an object with numeric width, height, and depth.' });
+        }
+
+        const modelPath = path.join(__dirname, 'models', `${modelName}.glb`);
+
+        if (!fs.existsSync(modelPath)) {
+            return res.status(404).json({ error: 'Model file not found.' });
+        }
+        const io = new NodeIO();
+        const document = await io.read(modelPath);
+
+
+        let originalWidth, originalHeight, originalDepth;
+        //We get the bounds by getting it from each scene
+        for (const scene of document.getRoot().listScenes()) {
+          const bbox = getBounds(scene);
+             originalWidth = bbox.max[0] - bbox.min[0];
+             originalHeight = bbox.max[1] - bbox.min[1];
+             originalDepth = bbox.max[2] - bbox.min[2];
+              break;
+          }
+
+
+        // Calculate the scale factors
+        const scaleX = desiredSize.width / originalWidth;
+        const scaleY = desiredSize.height / originalHeight;
+        const scaleZ = desiredSize.depth / originalDepth;
+        const calculatedScale = [scaleX, scaleY, scaleZ];
+
+
+        // Generate a unique hash based on model name and desired dimensions
+        const hash = crypto.createHash('md5').update(modelName + JSON.stringify(calculatedScale)).digest('hex');
+        const outputFilename = `${modelName}_${hash}.glb`;
+        const outputPath = path.join(__dirname, 'models', 'resized', outputFilename);
+
+        if (fs.existsSync(outputPath)) {
+            const fileUrl = `/models/resized/${outputFilename}`;
+            return res.json({ url: fileUrl });
+        }
+
+        for (const scene of document.getRoot().listScenes()) {
+
+            const parent = document.createNode('parent');
+            const children = scene.listChildren();
+
+            children.forEach((child) => {
+                scene.removeChild(child);
+                parent.addChild(child);
+            });
+
+            scene.addChild(parent);
+
+            parent.setScale(calculatedScale);
+        }
+
+
+        fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+
+        await io.write(outputPath, document);
+        const fileUrl = `/models/resized/${outputFilename}`;
+        res.json({ url: fileUrl });
+
+    } catch (error) {
+        console.error('Error processing GLTF:', error);
+        res.status(500).json({ error: 'An error occurred while processing the model.' });
     }
-
-    // Ensure modelName does not contain any path traversal characters
-    if (modelName.includes('/') || modelName.includes('\\') || modelName.includes('..')) {
-      return res.status(400).json({ error: 'Invalid modelName specified.' });
-    }
-
-    const modelPath = path.join(__dirname, 'models', `${modelName}.glb`);
-
-    // Check if the model file exists in the 'models' directory
-    if (!fs.existsSync(modelPath)) {
-      return res.status(404).json({ error: 'Model file not found.' });
-    }
-
-    // Initialize desiredSize
-    let desiredSize;
-    if (typeof scale === 'number') {
-      // Uniform scaling for all dimensions
-      desiredSize = [scale, scale, scale];
-    } else if (typeof scale === 'object' && scale !== null) {
-      const { width, height, depth } = scale;
-      if (
-        typeof width !== 'number' ||
-        typeof height !== 'number' ||
-        typeof depth !== 'number'
-      ) {
-        return res.status(400).json({ error: 'Size object must have numeric width, height, and depth.' });
-      }
-      desiredSize = [width, height, depth];
-    } else {
-      return res.status(400).json({ error: 'Scale must be a number or an object with width, height, and depth.' });
-    }
-
-    // Generate a unique hash based on model name and scale factors
-    const hash = crypto.createHash('md5').update(modelName + JSON.stringify(desiredSize)).digest('hex');
-    const outputFilename = `${modelName}_${hash}.glb`;
-    const outputPath = path.join(__dirname, 'models', 'resized', outputFilename);
-
-    // Check if the model with the same scaling already exists
-    if (fs.existsSync(outputPath)) {
-      // If it exists, return the link
-      const fileUrl = `/models/resized/${outputFilename}`;
-      return res.json({ url: fileUrl });
-    }
-
-    // Read the GLTF file
-    const io = new NodeIO();
-    const document = await io.read(modelPath);
-
-    // Iterate over each scene in the GLTF
-    for (const scene of document.getRoot().listScenes()) {
-      // Create a new parent node using document.createNode()
-      const parent = document.createNode('parent');
-
-      // Get all the children of the scene
-      const children = scene.listChildren();
-
-      // Remove all children from the scene and add them to the new parent node
-      children.forEach((child) => {
-        scene.removeChild(child);
-        parent.addChild(child);
-      });
-
-      // Add the parent node to the scene
-      scene.addChild(parent);
-
-      // Set the scale to the parent node to resize the whole scene
-      parent.setScale(desiredSize);
-    }
-
-    // Ensure the output directory exists
-    fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-
-    // Write the updated GLTF file
-    await io.write(outputPath, document);
-
-    // Return the link to the resized model
-    const fileUrl = `/models/resized/${outputFilename}`;
-    res.json({ url: fileUrl });
-  } catch (error) {
-    console.error('Error processing GLTF:', error);
-    res.status(500).json({ error: 'An error occurred while processing the model.' });
-  }
 });
 
 // Create HTTPS server
