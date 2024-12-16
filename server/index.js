@@ -42,6 +42,22 @@ const upload = multer({
 // Serve static files from the 'public' directory
 app.use('/models', express.static('./models'));
 
+// Upload route
+app.post('/upload', (req, res) => {
+    upload(req, res, function (err) {
+        if (err instanceof multer.MulterError) {
+            return res.status(500).json({ error: 'Multer error occurred: ' + err.message });
+        } else if (err) {
+            return res.status(500).json({ error: 'An unknown error occurred during file upload.' });
+        }
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        const fileUrl = `/models/${req.file.filename}`;
+        res.json({ message: 'File uploaded successfully', url: fileUrl });
+    });
+});
+
 app.post('/resize', async (req, res) => {
   try {
     const { modelName, scale } = req.body; // Expecting modelName and scale in the request body

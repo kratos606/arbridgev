@@ -132,7 +132,7 @@ export default function PosterAR() {
       const result = await response.json();
       const modelUrl = `${result.url}`;
       console.log({ url: modelUrl });
-      return { url: modelUrl };
+      return { url: 'https://ardisplay.ddns.net:3000' + modelUrl };
     } catch (error) {
       console.error('Upload error:', error);
       throw new Error('Failed to upload GLB model: ' + error.message);
