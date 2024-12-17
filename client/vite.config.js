@@ -13,5 +13,8 @@ export default defineConfig({
     },
     port: 443, // Use port 443 for HTTPS
   },
+  preview: {
+    port: 443,
+  }
 })
 
