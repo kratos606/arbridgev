@@ -79,13 +79,14 @@ export default function PosterAR() {
       const scene = new THREE.Scene();
 
       const aspectRatio = texture.image.width / texture.image.height;
-      const planeHeight = 0.3; // Adjust as needed
+      const planeHeight = 1; // Adjust as needed
       const planeWidth = planeHeight * aspectRatio;
 
       const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
       const material = new THREE.MeshStandardMaterial({
         map: texture,
         side: THREE.DoubleSide,
+      	transparent: true,
       });
 
       const plane = new THREE.Mesh(geometry, material);
@@ -173,7 +174,6 @@ export default function PosterAR() {
             min-field-of-view="10deg"
             max-field-of-view="45deg"
             bounds="tight"
-            dimension-scale="100cm 200cm 30cm"
             ar-placement="wall"
             placement-mode="automatic"
             shadow-root-opacity="0.8"
