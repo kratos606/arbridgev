@@ -90,8 +90,8 @@ function Model() {
                 ar
                 ar-modes="webxr scene-viewer quick-look"
                 camera-controls
-                environment-image={"/brown_photostudio_02_2k.hdr"}
-                skybox-image={"/brown_photostudio_02_2k.hdr"}
+                environment-image={"/brown_photostudio_02_1k.hdr"}
+                skybox-image={"/brown_photostudio_02_1k.hdr"}
                 shadow-intensity="1"
                 shadow-softness="1"
                 exposure="1"

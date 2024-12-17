@@ -3,10 +3,10 @@ const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
-const https = require('https'); // HTTPS module for secure server
+const https = require('https');
 const http = require('http');
 const bodyParser = require('body-parser');
-const { NodeIO } = require('@gltf-transform/core'); // Import Bounds from @gltf-transform/core
+const { NodeIO } = require('@gltf-transform/core');
 const { getBounds } = require('@gltf-transform/functions');
 const crypto = require('crypto');
 
@@ -15,7 +15,6 @@ const privateKey = fs.readFileSync(path.resolve(__dirname, '.cert', 'privateKey.
 const certificate = fs.readFileSync(path.resolve(__dirname, '.cert', 'certificate.crt'), 'utf8');
 const ca = fs.readFileSync(path.resolve(__dirname, '.cert', 'ca_bundle.crt'), 'utf8');
 
-// Define the SSL credentials
 const credentials = {
     key: privateKey,
     cert: certificate,
@@ -26,22 +25,33 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Set up storage engine for multer
+// Modified storage to use original filename
 const storage = multer.diskStorage({
   destination: './models',
   filename: function (req, file, cb) {
-    cb(null, 'glb-' + Date.now() + path.extname(file.originalname));
+    // Just use the original filename
+    cb(null, file.originalname);
   },
 });
 
-// Initialize upload
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // Limit file size to 100MB
-}).single('model'); // The name of the form field containing the file
+  limits: { fileSize: 100 * 1024 * 1024 },
+}).single('model');
 
-// Serve static files from the 'public' directory
 app.use('/models', express.static('./models'));
+
+// Check if model exists
+app.get('/check-model/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, 'models', filename);
+  
+  if (fs.existsSync(filePath)) {
+    res.json({ exists: true, url: `/models/${filename}` });
+  } else {
+    res.json({ exists: false });
+  }
+});
 
 // Upload route
 app.post('/upload', (req, res) => {

@@ -1,0 +1,1 @@
+import{j as e}from"./index-Dit8z4pW.js";function r(){return e.jsxs("div",{className:"h-screen flex flex-col justify-center items-center",children:[e.jsx("p",{className:"font-bold text-3xl text-black",children:"Oops!"}),e.jsx("p",{className:"font-medium text-lg text-gray-400",children:"Sorry, result not found"})]})}export{r as default};

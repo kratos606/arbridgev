@@ -1,0 +1,1 @@
+import{j as o}from"./index-Dit8z4pW.js";function r(){return o.jsx("div",{children:o.jsx("button",{onClick:()=>window.location.href="googlechromes://art.ardisplay.io/model/ff",children:"Redirect to chrome"})})}export{r as default};

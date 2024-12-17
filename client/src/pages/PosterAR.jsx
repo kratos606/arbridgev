@@ -16,7 +16,7 @@ export default function PosterAR() {
   // Redirect non-mobile users to the standard poster view
   useEffect(() => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry/i.test(
-      navigator.userAgent
+        navigator.userAgent
     );
     if (!isMobile) {
       navigate(`/poster/${image}`);
@@ -30,34 +30,37 @@ export default function PosterAR() {
     }
   }, []);
 
-  useEffect(() => {
-    // Load the image, create GLB, upload to server, and get the model URL
-    async function processImage() {
-      setIsProcessing(true);
-      try {
-        // Load the image
-        const imageURL = `/images/${image}`;
-        const texture = await loadTexture(imageURL);
+    useEffect(() => {
+        async function processImage() {
+            setIsProcessing(true);
+            try {
+                // First, check if the model already exists
+                const checkResponse = await fetch(`https://ardisplay.ddns.net:3000/check-model/${image}.glb`);
+                const checkResult = await checkResponse.json();
 
-        // Create GLB model
-        const glb = await createGLBModel(texture);
+                if (checkResult.exists) {
+                    // If model exists, just use the existing URL
+                    setModelURL('https://ardisplay.ddns.net:3000' + checkResult.url);
+                } else {
+                    // If model doesn't exist, create and upload it
+                    const imageURL = `/images/${image}`;
+                    const texture = await loadTexture(imageURL);
+                    const glb = await createGLBModel(texture);
+                    const uploadResult = await uploadGLB(glb, `${image}.glb`);
+                    setModelURL(uploadResult.url);
+                }
+            } catch (error) {
+                console.error('Error processing image:', error);
+            } finally {
+                setIsProcessing(false);
+            }
+        }
 
-        // Upload GLB to server
-        const uploadResult = await uploadGLB(glb, `${image}.glb`);
+        processImage();
+    }, [image]);
 
-        // Set the model URL
-        setModelURL(uploadResult.url);
-      } catch (error) {
-        console.error('Error processing image:', error);
-      } finally {
-        setIsProcessing(false);
-      }
-    }
 
-    processImage();
-  }, [image]);
-
-  // Function to load texture
+  // Function to load texture (unchanged)
   function loadTexture(url) {
     return new Promise((resolve, reject) => {
       const loader = new THREE.TextureLoader();
@@ -86,7 +89,7 @@ export default function PosterAR() {
       const material = new THREE.MeshStandardMaterial({
         map: texture,
         side: THREE.DoubleSide,
-      	transparent: true,
+        transparent: true,
       });
 
       const plane = new THREE.Mesh(geometry, material);
@@ -94,28 +97,26 @@ export default function PosterAR() {
 
       const exporter = new GLTFExporter();
       exporter.parse(
-        scene,
-        (result) => {
-          // Success callback
-          const output =
-            result instanceof ArrayBuffer ? result : new Uint8Array(result);
-          resolve(output);
-        },
-        (error) => {
-          // Error callback
-          console.error('An error occurred during GLTF export:', error);
-          reject(error);
-        },
-        { binary: true } // Correct placement of options
+          scene,
+          (result) => {
+              const output =
+                  result instanceof ArrayBuffer ? result : new Uint8Array(result);
+              resolve(output);
+          },
+          (error) => {
+            console.error('An error occurred during GLTF export:', error);
+            reject(error);
+          },
+          { binary: true }
       );
     });
   }
+
 
   // Function to upload GLB to the server
   async function uploadGLB(glbData, filename) {
     const formData = new FormData();
     const blob = new Blob([glbData], { type: 'application/octet-stream' });
-    console.log(blob);
     formData.append('model', blob, filename);
 
     try {
@@ -127,13 +128,14 @@ export default function PosterAR() {
         },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+        if (!response.ok) {
+            const errorText = await response.text(); // Get the error message
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+
 
       const result = await response.json();
       const modelUrl = `${result.url}`;
-      console.log({ url: modelUrl });
       return { url: 'https://ardisplay.ddns.net:3000' + modelUrl };
     } catch (error) {
       console.error('Upload error:', error);
@@ -141,10 +143,17 @@ export default function PosterAR() {
     }
   }
 
+
   const handleARClick = () => {
     if (arButtonRef.current) {
       arButtonRef.current.click();
     }
+  };
+
+  const handleResetClick = () => {
+      if (modelViewerRef.current) {
+          modelViewerRef.current.resetCamera();
+      }
   };
 
   return (
@@ -159,8 +168,8 @@ export default function PosterAR() {
             ar
             ar-modes="webxr scene-viewer quick-look"
             camera-controls
-            environment-image="/brown_photostudio_02_2k.hdr"
-            skybox-image="/brown_photostudio_02_2k.hdr"
+            environment-image="/brown_photostudio_02_1k.hdr"
+            skybox-image="/brown_photostudio_02_1k.hdr"
             shadow-intensity="1"
             shadow-softness="1"
             exposure="1"
@@ -183,29 +192,30 @@ export default function PosterAR() {
                 width: '100%',
                 height: '100%',
             }}
-            onARStatus={(event) => {
-            const status = event.detail.status;
+             onARStatus={(event) => {
+                const status = event.detail.status;
                 if (status === 'failed') {
-                // Handle AR failure
-                document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').style.display = 'block';
+                 } else {
+                   document.getElementById('error').style.display = 'none';
                 }
-            }}
-      >
-          <div className="progress-bar" slot="progress-bar">
-            <div className="update-bar"></div>
-          </div>
-
-        <button
-          slot="ar-button"
-          ref={arButtonRef}
-          className="ar-button"
-          disabled={!modelURL || isProcessing}
+             }}
         >
-          AR View
-        </button>
-      </model-viewer>
+            <div className="progress-bar" slot="progress-bar">
+                <div className="update-bar"></div>
+            </div>
+            <button
+                slot="ar-button"
+                ref={arButtonRef}
+                className="ar-button"
+                disabled={!modelURL || isProcessing}
+                onClick={handleARClick}
+            >
+              AR View
+            </button>
+        </model-viewer>
       <div className="controls">
-        <button id="resetPosition">Reset</button>
+            <button onClick={handleResetClick}>Reset</button>
       </div>
       <div className="absolute top-0 left-0 right-0 bottom-0 z-50 bg-white text-black h-full w-full hidden" id="error" > Can't display AR </div>
 
