@@ -96,7 +96,8 @@ export default function PosterAR() {
         scene,
         (result) => {
           // Success callback
-          const output = result instanceof ArrayBuffer ? result : new Uint8Array(result);
+          const output =
+            result instanceof ArrayBuffer ? result : new Uint8Array(result);
           resolve(output);
         },
         (error) => {
@@ -147,65 +148,12 @@ export default function PosterAR() {
 
   return (
     <div
-      className="mobile-view h-screen overflow-hidden"
+      className="h-screen overflow-hidden bg-[#f8f8f8]"
       data-ar-status="pending"
       ref={rootContainerRef}
     >
-      <div className="w-screen h-full model-preview">
-        <div className="h-full w-screen flex bg-purple-950 flex-col justify-around items-center">
-          <a rel="noreferrer" title="The Creatiiives" target="_blank">
-            <img
-              className="top-0 left-1/3 h-10 w-auto object-contain m-2 max-w-[140px]"
-              src="/client-logo.png"
-              alt="provided by AR Display"
-            />
-          </a>
-          <img
-            className="w-[85%] h-auto max-w-xl m-auto object-contain rounded-lg"
-            src={'/bridge-img.gif'}
-            alt="model"
-          />
-	  <button
-            onClick={handleARClick}
-            disabled={!modelURL || isProcessing}
-            className="mb-6 bg-slate-400 px-3 py-2 rounded-full text-white text-sm flex justify-between items-center z-50"
-          >
-            <img className="w-8 h-8 mr-1" src="/ar.png" alt="ar" />{' '}
-            {isProcessing ? 'Processing...' : 'View in your space'}
-          </button>
-          {/* Remove the custom button here */}
-          <div className="bg-slate-400 w-full flex justify-center items-center">
-            <span className="text-white text-sm font-light">Powered by</span>
-            <a
-              rel="noreferrer"
-              href="https://ardisplay.io/"
-              title="AR Display"
-              target="_blank"
-            >
-              <img
-                className="top-0 left-1/3 h-10 w-auto object-contain m-2"
-                src="/logo.png"
-                alt="provided by AR Display"
-              />
-            </a>
-          </div>
-        </div>
-        <div className="h-screen w-screen">
-          <div
-            className="absolute top-0 left-0 right-0 bottom-0 z-50 bg-white text-black h-full w-full hidden"
-            id="error"
-          >
-            Can't display AR
-          </div>
-          <model-viewer
+        <model-viewer
             ref={modelViewerRef}
-            style={{
-              position: 'absolute',
-              width: '100%',
-              height: '100%',
-	      opacity: 0,
-              pointerEvents: 'none',
-            }}
             src={modelURL}
             ar
             ar-modes="webxr scene-viewer quick-look"
@@ -225,29 +173,42 @@ export default function PosterAR() {
             min-field-of-view="10deg"
             max-field-of-view="45deg"
             bounds="tight"
+            dimension-scale="100cm 200cm 30cm"
             ar-placement="wall"
             placement-mode="automatic"
             shadow-root-opacity="0.8"
             environment-intensity="1"
             tone-mapping="commerce"
+            style={{
+                width: '100%',
+                height: '100%',
+            }}
             onARStatus={(event) => {
-              const status = event.detail.status;
-              if (status === 'failed') {
+            const status = event.detail.status;
+                if (status === 'failed') {
                 // Handle AR failure
                 document.getElementById('error').style.display = 'block';
-              }
+                }
             }}
-          >
-            <button
-              slot="ar-button"
-              ref={arButtonRef}
-	      disabled={!modelURL || isProcessing}
-              className="mb-6 bg-slate-400 px-3 py-2 rounded-full text-white text-sm flex justify-between items-center z-50"
-            >
-            </button>
-          </model-viewer>
-        </div>
+      >
+          <div className="progress-bar" slot="progress-bar">
+            <div className="update-bar"></div>
+          </div>
+
+        <button
+          slot="ar-button"
+          ref={arButtonRef}
+          className="ar-button"
+          disabled={!modelURL || isProcessing}
+        >
+          AR View
+        </button>
+      </model-viewer>
+      <div className="controls">
+        <button id="resetPosition">Reset</button>
       </div>
+      <div className="absolute top-0 left-0 right-0 bottom-0 z-50 bg-white text-black h-full w-full hidden" id="error" > Can't display AR </div>
+
     </div>
   );
 }
